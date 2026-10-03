@@ -1,0 +1,30 @@
+# Tangmen の C コードの書式（clang-format 21 で確認）。
+# タブでインデントし（幅 8）、関数の中括弧だけ次の行に置く Linux 風のスタイル。
+BasedOnStyle: LLVM
+Language: Cpp
+IndentWidth: 8
+TabWidth: 8
+UseTab: ForContinuationAndIndentation
+ContinuationIndentWidth: 8
+ColumnLimit: 100
+BreakBeforeBraces: Linux
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortBlocksOnASingleLine: Never
+AllowShortEnumsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+IndentCaseLabels: false
+PointerAlignment: Right
+SpaceAfterCStyleCast: false
+AlignAfterOpenBracket: Align
+AlignConsecutiveMacros: None
+AlignEscapedNewlines: DontAlign
+AlignTrailingComments:
+  Kind: Always
+  OverEmptyLines: 0
+ReflowComments: false
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+# 長いマクロの継続行（\ による改行）を崩さないよう、マクロ本体の再整形は控えめにする
+SkipMacroDefinitionBody: true

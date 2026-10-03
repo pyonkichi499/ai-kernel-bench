@@ -1,0 +1,72 @@
+# CI: 開発用コンテナイメージ（.devcontainer/Dockerfile）の中で、書式チェック・ビルド・
+# テスト 3 層（ホスト単体テスト、カーネル内単体テスト、QEMU 結合テスト）をすべて実行する。
+#
+# 今は C 版（Kui）だけなので常に全体をテストする。
+# Rust 版（Yuzhu）を追加したら、変更されたディレクトリに応じて言語ごとにジョブを分け、
+# 共通部分（spec/、tests/、user/、boot/、scripts/）が変わったときは全言語をテストするよう
+# パスフィルタを追加すること。
+name: CI
+
+# 作業ブランチは PR 経由で検査する。push でも走らせると PR と二重に実行されるので、
+# push は main（マージ後の確認）だけに限る。手動実行もできるようにしておく。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同じ PR（ブランチ）で新しい実行が始まったら古い実行は止める。
+# main は各マージの結果を必ず残したいので止めない。
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # GitHub のランナーは /dev/kvm を持つが、一般ユーザーには権限がない。
+      # udev ルールで誰でも使えるようにする（QEMU が KVM で高速に動く）。
+      # KVM が使えない場合でも scripts/qemu.py が TCG に切り替えるので、テストは動く。
+      - name: KVM を有効にする
+        run: |
+          if [ -e /dev/kvm ]; then
+            echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+              | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+            sudo udevadm control --reload-rules
+            sudo udevadm trigger --name-match=kvm
+            ls -l /dev/kvm
+          else
+            echo "/dev/kvm がないため TCG で実行します"
+          fi
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: 開発用イメージをビルドする
+        uses: docker/build-push-action@v7
+        with:
+          context: .devcontainer
+          load: true
+          tags: tangmen-dev:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 書式チェック・ビルド・テスト
+        timeout-minutes: 15
+        env:
+          TANGMEN_IMAGE: tangmen-dev:ci
+        run: scripts/dev make ci
+
+      - name: テストログを保存する
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-logs
+          path: build/*/test-logs
+          if-no-files-found: ignore
