@@ -1,0 +1,12 @@
+name = "m0_cmdline"
+description = "ブートローダーから渡したコマンドラインがそのままカーネルに届く"
+milestone = "M0"
+kernel = "main"
+cmdline = "tangmen-test foo=bar"
+timeout = 30
+expect = [
+    '^cmdline: .*tangmen-test foo=bar',
+    '^kui: init complete',
+]
+forbid = ["PANIC", "UBSAN"]
+exit = "any"

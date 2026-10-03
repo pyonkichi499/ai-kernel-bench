@@ -1,0 +1,14 @@
+name = "m0_boot"
+description = "Limine から通常起動し、boot_info を表示して初期化を終えられる"
+milestone = "M0"
+kernel = "main"
+cmdline = ""
+timeout = 30
+expect = [
+    '^Kui 0\.0\.1 \(Tangmen C kernel\)',
+    '^bootloader: Limine',
+    '^memmap: [0-9]+ entries, [0-9]+ KiB usable',
+    '^kui: init complete',
+]
+forbid = ["PANIC", "UBSAN"]
+exit = "any"

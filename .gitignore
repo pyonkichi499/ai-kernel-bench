@@ -1,0 +1,9 @@
+# ビルド成果物（カーネル、ISO、テストログなど）
+/build/
+
+# エディタ・ツールの生成物
+.vscode/
+.cache/
+compile_commands.json
+__pycache__/
+*.pyc

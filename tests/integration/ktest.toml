@@ -1,0 +1,9 @@
+name = "ktest"
+description = "テスト用カーネルでカーネル内単体テストを全部実行し、全て合格する"
+milestone = "M0"
+kernel = "ktest"
+cmdline = ""
+timeout = 60
+expect = ['^ktest: [0-9]+ passed, 0 failed']
+forbid = ["PANIC", "UBSAN", 'ktest: FAIL']
+exit = "success"

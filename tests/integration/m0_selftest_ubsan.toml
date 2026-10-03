@@ -1,0 +1,9 @@
+name = "m0_selftest_ubsan"
+description = "debug ビルドのカーネル内 UBSan が未定義動作（符号付き整数の溢れ）を検出して報告する"
+milestone = "M0"
+kernel = "main"
+cmdline = "selftest=ubsan"
+timeout = 30
+expect = ['UBSAN: add-overflow']
+forbid = []
+exit = "any"

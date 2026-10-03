@@ -1,0 +1,62 @@
+#!/bin/sh
+# 開発イメージ（.devcontainer/Dockerfile）の中でコマンドを実行するラッパー。
+#
+# 使い方:
+#   scripts/dev make test        # テストを全部実行
+#   scripts/dev make run         # QEMU でカーネルを起動
+#   scripts/dev                  # 開発イメージの中でシェルを開く
+#
+# イメージのタグは Dockerfile の内容から決まる（tangmen-dev:<sha256 の先頭 12 桁>）。
+# Dockerfile を変えると別のタグになり、初回実行時に自動でビルドし直す。
+# 環境変数 TANGMEN_IMAGE を設定すると、そのイメージを使う（CI でビルド済みのものを使う場合など）。
+# 環境変数 TANGMEN_NO_KVM=1 を設定すると、KVM を使わずに QEMU を動かす。
+set -eu
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+dockerfile="$repo/.devcontainer/Dockerfile"
+
+if [ -n "${TANGMEN_IMAGE:-}" ]; then
+	image=$TANGMEN_IMAGE
+else
+	hash=$(sha256sum "$dockerfile" | cut -c1-12)
+	image="tangmen-dev:$hash"
+	if ! docker image inspect "$image" >/dev/null 2>&1; then
+		echo "[scripts/dev] 開発イメージ $image をビルドします（初回のみ数分かかります）" >&2
+		docker build -t "$image" "$repo/.devcontainer" >&2
+	fi
+fi
+
+if [ $# -eq 0 ]; then
+	set -- bash
+fi
+
+# docker run の引数を、ユーザーのコマンドの前に積み上げていく。
+# （POSIX sh には配列がないので位置引数を使う。空白を含むパスも正しく渡せる）
+set -- "$image" "$@"
+
+# 標準入力は常に渡す（-i）。端末から実行したときだけ -t（疑似端末）も付ける。
+# CI やパイプでは -t を付けると失敗するため。
+if [ -t 0 ] && [ -t 1 ]; then
+	set -- -it "$@"
+else
+	set -- -i "$@"
+fi
+
+# KVM が使えるなら、デバイスとその所有グループをコンテナに渡す
+if [ -e /dev/kvm ] && [ -z "${TANGMEN_NO_KVM:-}" ]; then
+	kvm_gid=$(stat -c %g /dev/kvm)
+	set -- --device /dev/kvm --group-add "$kvm_gid" "$@"
+fi
+
+# ホストと同じ UID/GID で動かし、作られたファイルの所有者がホストのユーザーになるようにする。
+# そのユーザーはイメージ内に存在しないので、HOME は書き込める /tmp にする。
+# --network host: `make debug` の QEMU が待ち受ける GDB 用ポート（1234）に、
+# 別の端末の `scripts/dev gdb ...`（別のコンテナ）から localhost で接続できるようにする。
+set -- --rm --init --network host \
+	-v "$repo:/work" -w /work \
+	--user "$(id -u):$(id -g)" -e HOME=/tmp \
+	-e TANGMEN_NO_KVM="${TANGMEN_NO_KVM:-}" \
+	-e PYTHONDONTWRITEBYTECODE=1 \
+	"$@"
+
+exec docker run "$@"

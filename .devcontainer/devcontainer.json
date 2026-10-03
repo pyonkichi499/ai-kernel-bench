@@ -1,0 +1,25 @@
+// VS Code の Dev Container 設定。
+// ターミナルから使う場合は scripts/dev（同じ Dockerfile のイメージで実行する）を使う。
+//
+// KVM について:
+//   QEMU を高速に動かすため /dev/kvm をコンテナに渡す。ただしコンテナ内のユーザーが
+//   /dev/kvm を使えるかは、ホストの kvm グループの GID に依存する。使えない場合でも
+//   scripts/qemu.py が自動で TCG（ソフトウェアエミュレーション）に切り替えるので動作はする。
+//   ホストに /dev/kvm がない環境では、下の "--device=/dev/kvm" を削除しないと起動に失敗する。
+{
+	"name": "Tangmen",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"runArgs": ["--device=/dev/kvm"],
+	"remoteUser": "ubuntu",
+	"updateRemoteUserUID": true,
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"llvm-vs-code-extensions.vscode-clangd",
+				"ms-python.python"
+			]
+		}
+	}
+}

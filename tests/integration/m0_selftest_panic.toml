@@ -1,0 +1,9 @@
+name = "m0_selftest_panic"
+description = "panic() がメッセージをシリアルに出して停止する"
+milestone = "M0"
+kernel = "main"
+cmdline = "selftest=panic"
+timeout = 30
+expect = ['PANIC: selftest']
+forbid = ["UBSAN"]
+exit = "any"
