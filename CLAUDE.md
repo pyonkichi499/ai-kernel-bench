@@ -70,6 +70,6 @@ scripts/dev make run      # QEMU で起動する
 - `.git/config` と `.git/hooks` は読み取り専用。git の設定は変えられない。
   - `.git/config` に書き込む操作はエラー（`could not write config file .git/config`）になる。`git config` は使わない。
   - ブランチは追跡設定なしで作る：`git switch -c <名前> --no-track <起点>`、`git branch --no-track <名前> <起点>`、`git worktree add --no-track -b <名前> <パス> <起点>`。
-- `/dev/kvm` がないので、QEMU は TCG（ソフトウェアエミュレーション）で動き、遅い。テストがタイムアウトしたら、まず TCG の遅さを疑う。
+- `/dev/kvm` は使える（claude-sandbox のホスト側の設定 `devices` で渡している）ので、QEMU は KVM で動く。テストの出力が `TCG（KVM なし）` になっていたら、渡し方の問題なのでオーナーに知らせる（TCG でも動くが遅い）。
 - worktree はリポジトリの中（例：`.claude/worktrees/`）に作る。リポジトリの外はコンテナから見えない。
 - `build/` はホストと共有している。ホストとコンテナで同時にビルドしない（同じ出力先なら Makefile の flock で待ち合わせる）。

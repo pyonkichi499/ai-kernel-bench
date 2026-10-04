@@ -64,7 +64,7 @@ git checkout c/m2-memory   # M2 のインターフェースの下書きが main 
 ## 4. コンテナ内で再開する
 
 次のセッションは、Docker コンテナ内の Claude Code（`claude-sandbox`）で、権限確認なしで再開する。
-使い方と制約（コミットは署名なしで行い、push、PR、タグはホストで行う。KVM がないので QEMU は TCG で動く）は、`CLAUDE.md` の「コンテナ内で作業するとき」を参照。
+使い方と制約（コミットは署名なしで行い、push、PR、タグはホストで行う。QEMU は KVM で動く）は、`CLAUDE.md` の「コンテナ内で作業するとき」を参照。
 
 - コンテナ用の準備（`.claude-sandbox.toml`、`.devcontainer/claude/Dockerfile`、`scripts/build-sandbox-image`、`CLAUDE.md` など）は、M2 とは別の PR にする。
 - コンテナ内では、ホストの Claude Code のメモリは見えない。必要なことは `CLAUDE.md` とこのファイルに書いてある。
