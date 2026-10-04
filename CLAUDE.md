@@ -5,7 +5,9 @@
 
 ## 最初に読むもの
 
-- 要件定義書（Claude Docs、非公開。正本）：https://claude.ai/code/artifact/d8d72596-fc52-47a0-8e39-e508d1beaef7
+- 要件定義書：`docs/requirements.md`（Claude Docs にある正本の写し。コンテナ内では Claude Docs を読めないので、こちらを読む）
+  - 正本：https://claude.ai/code/artifact/d8d72596-fc52-47a0-8e39-e508d1beaef7
+  - 写しと正本が食い違っていそうなら、オーナーに知らせる。ホストで書き出し直す
 - `HANDOFF.md`（あれば）：中断した作業の引き継ぎメモ。再開するときは最初に読む
 - `README.md`、`docs/milestones/`（各マイルストーンの解説書）
 
