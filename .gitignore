@@ -7,3 +7,6 @@
 compile_commands.json
 __pycache__/
 *.pyc
+
+# リポジトリの中に作る git worktree（コンテナからも見えるように、ここに作る）
+/.claude/worktrees/

@@ -1,0 +1,3 @@
+# claude-sandbox（コンテナ内で Claude Code を動かすコマンド）の設定。
+# イメージは scripts/build-sandbox-image でビルドする。
+image = "tangmen-claude"
