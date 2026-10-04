@@ -1,0 +1,17 @@
+name = "m1_boot"
+description = "GDT・IDT・ACPI・APIC・タイマーを順に初期化し、割り込みを許可してタイマー割り込みが届く"
+milestone = "M1"
+kernel = "main"
+cmdline = ""
+timeout = 30
+expect = [
+    '^Kui 0\.0\.1 \(Tangmen C kernel\)',
+    '^gdt: loaded',
+    '^idt: loaded \(256 vectors\)',
+    '^acpi: MADT: [0-9]+ cpus, [0-9]+ ioapics, [0-9]+ overrides',
+    '^kui: interrupts enabled',
+    '^kui: timer ok \([0-9]+ ticks\)',
+    '^kui: init complete',
+]
+forbid = ["PANIC", "UBSAN", "EXCEPTION", "spinlock: warning"]
+exit = "any"

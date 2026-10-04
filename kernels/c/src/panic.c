@@ -3,6 +3,21 @@
  *
  * 通常のカーネルでは CPU を停止させる。テスト用カーネル（KUI_KTEST）では、
  * 外から失敗が分かるように QEMU を「失敗」の終了コードで終わらせる。
+ *
+ * 表示の順:
+ *   PANIC: <メッセージ>
+ *     called from 0x<panic を呼んだ場所>
+ *     stack trace:
+ *       #0 0x... <関数名>+0x...
+ *       ...
+ *
+ * 注意点:
+ *   - 最初に割り込みを禁止する。表示の途中で割り込み処理が動くと、状態がさらに壊れ得る。
+ *   - printk を panic モードに切り替えてから表示する。printk のロックを持ったまま
+ *     panic した場合（例: printk の書式化中に UBSan が反応した）でも、ロック待ちで
+ *     固まらずに表示できる。
+ *   - 表示中にさらに panic した（二重 panic）ら、書式化も信用できないので、
+ *     固定の文字列だけをシリアルへ直接出して止まる。
  */
 #include <stdarg.h>
 #include <stdint.h>
@@ -12,6 +27,7 @@
 #include <kui/printk.h>
 #include <kui/qemu.h>
 #include <kui/serial.h>
+#include <kui/stacktrace.h>
 
 /* panic 中にさらに panic した（例: 表示処理の中で UBSan が反応した）かどうか */
 static int panic_depth;
@@ -38,6 +54,8 @@ _Noreturn void panic(const char *fmt, ...)
 		goto stop;
 	}
 
+	printk_set_panic_mode();
+
 	printk("PANIC: ");
 	va_start(ap, fmt);
 	vprintk(fmt, ap);
@@ -46,6 +64,8 @@ _Noreturn void panic(const char *fmt, ...)
 	/* どこから panic が呼ばれたか。llvm-addr2line でソースの行に変換できる */
 	printk("  called from 0x%llx\n",
 	       (unsigned long long)(uintptr_t)__builtin_return_address(0));
+	printk("  stack trace:\n");
+	stacktrace_print_current();
 
 stop:
 #ifdef KUI_KTEST

@@ -63,10 +63,14 @@ jobs:
           TANGMEN_IMAGE: tangmen-dev:ci
         run: scripts/dev make ci
 
+      # 失敗時は、シリアルログに加えてカーネルの ELF も残す。
+      # ログに出たアドレスを llvm-addr2line でソースの行に変換するのに使う。
       - name: テストログを保存する
         if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: test-logs
-          path: build/*/test-logs
+          path: |
+            build/*/test-logs
+            build/*/*.elf
           if-no-files-found: ignore

@@ -44,7 +44,46 @@ QEMU_ARGS := --iso $(ISO) --symbols build/$(KERNEL)/$(NAME).elf \
 	$(if $(DISPLAY_QEMU),--display)
 RUN_TESTS := $(PYTHON) $(ROOT)/tests/run.py --kernel $(KERNEL) --iso $(ISO) $(if $(JOBS),-j $(JOBS))
 
-.PHONY: all build iso run debug test test-host test-ktest test-integration \
+# ---------------------------------------------------------------------------
+# 出力先（build/<言語>）のロック
+#
+# 複数の make（別の端末、並列に動くエージェントなど）が同じ build/<言語> を同時に
+# 書き換えると、2 段階リンクの途中のファイルや ISO を壊し合う。そこで、make を
+# 呼ぶと、まず flock でロックを取ってから自分自身を TANGMEN_LOCKED=1 付きで実行し直す。
+# 2 回目の make（と、そこから呼ばれる make）はロックを持っているので、そのまま進む。
+#
+# run / debug だけは、ISO を作るところまでロックを持ち、QEMU はロックの外で動かす。
+# QEMU を動かしている間ずっと、別の端末のテストを待たせないようにするため。
+# ---------------------------------------------------------------------------
+LOCK_FILE := $(ROOT)/build/.lock-$(KERNEL)
+# ロックが取れなければメッセージを出してから待つ（最大 30 分）
+WITH_LOCK = mkdir -p $(ROOT)/build && \
+	{ flock -n $(LOCK_FILE) true || echo "make: $(LOCK_FILE) を他の make が使用中のため待っています..." >&2; } && \
+	TANGMEN_LOCKED=1 flock -w 1800 $(LOCK_FILE)
+
+ifeq ($(TANGMEN_LOCKED),)
+
+GOALS := $(or $(MAKECMDGOALS),all)
+QEMU_GOALS := $(filter run debug,$(GOALS))
+OTHER_GOALS := $(filter-out run debug,$(GOALS))
+
+.PHONY: $(GOALS) locked-goals
+.NOTPARALLEL:
+
+# 指定されたターゲットは全部、ロックを取った再実行（locked-goals）に任せる
+$(OTHER_GOALS): locked-goals
+	@:
+
+locked-goals:
+	@$(if $(OTHER_GOALS),$(WITH_LOCK) $(MAKE) --no-print-directory $(OTHER_GOALS),:)
+
+$(QEMU_GOALS): locked-goals
+	@$(WITH_LOCK) $(MAKE) --no-print-directory iso
+	@TANGMEN_LOCKED=1 $(MAKE) --no-print-directory $@-qemu
+
+else
+
+.PHONY: all build iso run debug run-qemu debug-qemu test test-host test-ktest test-integration \
 	format format-check ci clean help
 
 # このファイルのターゲットは並列に実行しない。test-ktest と test-integration が
@@ -94,14 +133,21 @@ iso: build
 	xorriso -as mkisofs -R -r -J \
 		--efi-boot boot/limine/limine-uefi-cd.bin \
 		-efi-boot-part --efi-boot-image --protective-msdos-label \
-		$(ISO_ROOT) -o $(ISO) 2>$(OUT)/xorriso.log \
+		$(ISO_ROOT) -o $(ISO).tmp 2>$(OUT)/xorriso.log \
 		|| { cat $(OUT)/xorriso.log; exit 1; }
+	@# 一時ファイルに作ってから置き換える。実行中の QEMU（make run）が開いている
+	@# 古い ISO は、置き換えても中身が変わらない（別のファイルとして残る）
+	mv -f $(ISO).tmp $(ISO)
 	@echo "ISO を作りました: $(ISO)"
 
-run: iso
+run: iso run-qemu
+debug: iso debug-qemu
+
+# QEMU の起動だけを行う（ISO は作らない）。ロックの外で動かすために分けている
+run-qemu:
 	$(PYTHON) $(ROOT)/scripts/qemu.py $(QEMU_ARGS)
 
-debug: iso
+debug-qemu:
 	$(PYTHON) $(ROOT)/scripts/qemu.py $(QEMU_ARGS) --gdb
 
 test: test-host test-ktest test-integration
@@ -130,3 +176,5 @@ ci: format-check
 clean:
 	-$(MAKE) -C $(KERNEL_DIR) clean OUT=$(OUT)
 	rm -rf $(OUT) $(OUT)-release
+
+endif

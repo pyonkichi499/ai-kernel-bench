@@ -1,0 +1,14 @@
+name = "m1_selftest_spinlock"
+description = "割り込み禁止中に同じスピンロックを二重に取ると、デッドロックとして検出して panic する"
+milestone = "M1"
+kernel = "main"
+cmdline = "selftest=spinlock"
+timeout = 30
+expect = [
+    '^kui: interrupts enabled',
+    "PANIC: spinlock: deadlock: 'selftest' is already held",
+    '^  stack trace:',
+    '^    #[0-9]+ 0x[0-9a-f]{16} kmain\+0x[0-9a-f]+',
+]
+forbid = ["UBSAN", "selftest: spinlock deadlock was not detected"]
+exit = "any"

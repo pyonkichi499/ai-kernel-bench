@@ -1,0 +1,15 @@
+name = "m1_exception_pagefault"
+description = "未割り当てのアドレスの読み込み（#PF）を捕まえ、CR2 にそのアドレスを表示する"
+milestone = "M1"
+kernel = "main"
+cmdline = "selftest=pagefault"
+timeout = 30
+expect = [
+    'EXCEPTION: #PF Page Fault \(vector 14, error 0x[0-9a-f]+\)',
+    'CR2=0x00000000dead0000',
+    'stack trace:',
+    '#[0-9]+ 0x[0-9a-f]{16} kmain\+0x',
+    'PANIC: unhandled exception #PF',
+]
+forbid = ["UBSAN"]
+exit = "any"

@@ -19,6 +19,8 @@ endif
 
 CC          := clang
 LD          := ld.lld
+NM          := llvm-nm
+PYTHON      := python3
 CLANG_FORMAT ?= clang-format
 
 OBJDIR       := $(OUT)/obj/$(BUILD)
@@ -59,12 +61,20 @@ NOSAN_FLAGS := -fno-sanitize=all -fno-builtin
 LDFLAGS := -nostdlib -static -z max-page-size=0x1000 -z noexecstack -T linker.ld
 
 SRCS := $(sort $(wildcard src/*.c src/*/*.c src/*/*/*.c))
+# アセンブリ（割り込みの入口など）。C と同じく clang でアセンブルする
+ASM_SRCS := $(sort $(wildcard src/*.S src/*/*.S src/*/*/*.S))
 # ktest.c はテスト用カーネルにだけ入れる
-KERNEL_SRCS := $(filter-out src/ktest.c,$(SRCS))
-KTEST_SRCS  := $(SRCS) $(sort $(wildcard tests/ktest/*.c))
+KERNEL_SRCS := $(filter-out src/ktest.c,$(SRCS)) $(ASM_SRCS)
+KTEST_SRCS  := $(SRCS) $(ASM_SRCS) $(sort $(wildcard tests/ktest/*.c))
 
-KERNEL_OBJS := $(patsubst %.c,$(OBJDIR)/%.o,$(KERNEL_SRCS))
-KTEST_OBJS  := $(patsubst %.c,$(OBJDIR_KTEST)/%.o,$(KTEST_SRCS))
+KERNEL_OBJS := $(patsubst %,$(OBJDIR)/%.o,$(basename $(KERNEL_SRCS)))
+KTEST_OBJS  := $(patsubst %,$(OBJDIR_KTEST)/%.o,$(basename $(KTEST_SRCS)))
+
+# アセンブリ用のフラグ。UBSan などのコード生成用フラグは関係ないので付けない
+ASFLAGS := --target=x86_64-unknown-none-elf -Iinclude -MMD -MP -g
+
+# シンボル表（スタックトレースで関数名を出すため）の生成。詳細は tools/gen_symtab.py
+GEN_SYMTAB := $(PYTHON) tools/gen_symtab.py
 
 FORMAT_FILES := $(sort $(wildcard src/*.c src/*/*.c src/*/*/*.c include/kui/*.h \
 	include/kui/*/*.h include/kui/*/*/*.h tests/*/*.c tests/*/*.h))
@@ -79,13 +89,30 @@ FORCE:
 
 all: $(KERNEL) $(KERNEL_KTEST)
 
-$(KERNEL): $(KERNEL_OBJS) linker.ld FORCE
-	@mkdir -p $(dir $@)
-	$(LD) $(LDFLAGS) -o $@ $(KERNEL_OBJS)
+# 2 段階リンク（引数: 1 = 出力する ELF、2 = オブジェクト、3 = 中間ファイルの置き場所）
+#   1 回目: 件数 0 の仮のシンボル表でリンク
+#   2 回目: 1 回目の ELF から作った表でリンク
+#   確認  : 2 回目の ELF から作った表が 2 回目に使った表と一致すること
+#           （表の追加で関数のアドレスがずれていないことの保証）
+define link_with_symtab
+	@mkdir -p $(dir $(1)) $(3)
+	$(GEN_SYMTAB) --stub > $(3)/symtab-stub.c
+	$(CC) $(CFLAGS_COMMON) -c $(3)/symtab-stub.c -o $(3)/symtab-stub.o
+	$(LD) $(LDFLAGS) -o $(1).pass1 $(2) $(3)/symtab-stub.o
+	$(GEN_SYMTAB) $(NM) $(1).pass1 > $(3)/symtab.c
+	$(CC) $(CFLAGS_COMMON) -c $(3)/symtab.c -o $(3)/symtab.o
+	$(LD) $(LDFLAGS) -o $(1) $(2) $(3)/symtab.o
+	$(GEN_SYMTAB) $(NM) $(1) > $(3)/symtab-check.c
+	@cmp -s $(3)/symtab.c $(3)/symtab-check.c || \
+		{ echo "シンボル表の生成後に関数のアドレスが変わりました: $(1)" >&2; exit 1; }
+	@rm -f $(1).pass1
+endef
 
-$(KERNEL_KTEST): $(KTEST_OBJS) linker.ld FORCE
-	@mkdir -p $(dir $@)
-	$(LD) $(LDFLAGS) -o $@ $(KTEST_OBJS)
+$(KERNEL): $(KERNEL_OBJS) linker.ld tools/gen_symtab.py FORCE
+	$(call link_with_symtab,$@,$(KERNEL_OBJS),$(OBJDIR)/symtab)
+
+$(KERNEL_KTEST): $(KTEST_OBJS) linker.ld tools/gen_symtab.py FORCE
+	$(call link_with_symtab,$@,$(KTEST_OBJS),$(OBJDIR_KTEST)/symtab)
 
 $(OBJDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
@@ -94,6 +121,14 @@ $(OBJDIR)/%.o: %.c
 $(OBJDIR_KTEST)/%.o: %.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -DKUI_KTEST $(if $(filter $<,$(NOSAN_SRCS)),$(NOSAN_FLAGS)) -c $< -o $@
+
+$(OBJDIR)/%.o: %.S
+	@mkdir -p $(dir $@)
+	$(CC) $(ASFLAGS) -c $< -o $@
+
+$(OBJDIR_KTEST)/%.o: %.S
+	@mkdir -p $(dir $@)
+	$(CC) $(ASFLAGS) -DKUI_KTEST -c $< -o $@
 
 test-host:
 	$(MAKE) -C tests/host test OUT=$(OUT)/host

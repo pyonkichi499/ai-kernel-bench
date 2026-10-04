@@ -189,6 +189,18 @@ def _run_case(case: Case, iso: Path, kernel_name: str, log_dir: Path) -> Result:
                 return finish(True, "")
 
 
+def default_jobs() -> int:
+    """同時に起動する QEMU の数の既定値。
+
+    os.cpu_count() はマシン全体の CPU 数を返すため、コンテナに CPU を制限して
+    （docker --cpuset-cpus など）動かすと、使えない CPU の数まで QEMU を起動して
+    奪い合いになり、タイマーの較正や時間制限のあるケースが不安定になる。
+    process_cpu_count()（Python 3.13 以降）は、このプロセスが実際に使える CPU 数を返す。
+    """
+    count = os.process_cpu_count() if hasattr(os, "process_cpu_count") else os.cpu_count()
+    return max(1, count or 1)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="統合テストを実行する")
     parser.add_argument("--kernel", default="c", choices=sorted(KERNEL_NAMES), help="対象の言語")
@@ -203,7 +215,9 @@ def main() -> int:
     kind = parser.add_mutually_exclusive_group()
     kind.add_argument("--ktest", action="store_true", help="テスト用カーネルのケース（kernel = \"ktest\"）だけ実行する")
     kind.add_argument("--no-ktest", action="store_true", help="テスト用カーネルのケースを除く")
-    parser.add_argument("-j", "--jobs", type=int, default=os.cpu_count() or 1, help="同時に起動する QEMU の数")
+    parser.add_argument(
+        "-j", "--jobs", type=int, default=default_jobs(), help="同時に起動する QEMU の数（既定: 使える CPU 数）"
+    )
     parser.add_argument("--log-dir", type=Path, help="シリアルログの保存先（既定: build/<言語>/test-logs）")
     args = parser.parse_args()
 
