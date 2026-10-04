@@ -10,7 +10,17 @@
 # Dockerfile を変えると別のタグになり、初回実行時に自動でビルドし直す。
 # 環境変数 TANGMEN_IMAGE を設定すると、そのイメージを使う（CI でビルド済みのものを使う場合など）。
 # 環境変数 TANGMEN_NO_KVM=1 を設定すると、KVM を使わずに QEMU を動かす。
+# 開発イメージの中（TANGMEN_IN_CONTAINER=1）で実行したときは、docker を使わずにそのまま実行する。
 set -eu
+
+# すでに開発イメージの中（Dev Container や claude-sandbox など）にいるなら、そのまま実行する。
+# TANGMEN_IN_CONTAINER は .devcontainer/Dockerfile で設定している。
+if [ -n "${TANGMEN_IN_CONTAINER:-}" ]; then
+	if [ $# -eq 0 ]; then
+		set -- bash
+	fi
+	exec "$@"
+fi
 
 repo=$(cd "$(dirname "$0")/.." && pwd)
 dockerfile="$repo/.devcontainer/Dockerfile"
@@ -52,8 +62,11 @@ fi
 # そのユーザーはイメージ内に存在しないので、HOME は書き込める /tmp にする。
 # --network host: `make debug` の QEMU が待ち受ける GDB 用ポート（1234）に、
 # 別の端末の `scripts/dev gdb ...`（別のコンテナ）から localhost で接続できるようにする。
+# リポジトリはホストと同じパスにマウントする。ビルドの依存ファイル（.d）やデバッグ情報には
+# 絶対パスが入るので、claude-sandbox（同じパスにマウントする）と build/ を共有しても
+# ビルドし直しにならず、gdb で見えるソースのパスもホストとそろう。
 set -- --rm --init --network host \
-	-v "$repo:/work" -w /work \
+	-v "$repo:$repo" -w "$repo" \
 	--user "$(id -u):$(id -g)" -e HOME=/tmp \
 	-e TANGMEN_NO_KVM="${TANGMEN_NO_KVM:-}" \
 	-e PYTHONDONTWRITEBYTECODE=1 \

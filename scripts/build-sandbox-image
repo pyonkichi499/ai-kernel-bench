@@ -1,0 +1,26 @@
+#!/bin/sh
+# claude-sandbox 用のイメージ（.devcontainer/claude/Dockerfile）をビルドする。
+#
+# 使い方:
+#   scripts/build-sandbox-image              # tangmen-claude をビルドする
+#   scripts/build-sandbox-image --no-cache   # 追加の引数は docker build に渡す（Claude Code を最新にする場合など）
+#
+# 先に開発イメージ（tangmen-dev:<.devcontainer/Dockerfile のハッシュ>、scripts/dev と同じもの）を用意し、
+# その上に Claude Code を入れたイメージを tangmen-claude というタグで作る。
+# 開発イメージの Dockerfile を変えたら、これを実行し直すこと。
+set -eu
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+hash=$(sha256sum "$repo/.devcontainer/Dockerfile" | cut -c1-12)
+dev_image="tangmen-dev:$hash"
+
+if ! docker image inspect "$dev_image" >/dev/null 2>&1; then
+	echo "[build-sandbox-image] 開発イメージ $dev_image をビルドします" >&2
+	docker build -t "$dev_image" "$repo/.devcontainer"
+fi
+
+echo "[build-sandbox-image] tangmen-claude をビルドします（土台: $dev_image）" >&2
+exec docker build -t tangmen-claude \
+	--build-arg BASE_IMAGE="$dev_image" \
+	"$@" \
+	"$repo/.devcontainer/claude"

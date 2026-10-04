@@ -27,3 +27,7 @@ RUN git clone --depth 1 --branch ${LIMINE_VERSION}-binary \
 ENV LIMINE_DIR=/opt/limine \
     OVMF_CODE=/usr/share/OVMF/OVMF_CODE_4M.fd \
     OVMF_VARS=/usr/share/OVMF/OVMF_VARS_4M.fd
+
+# 開発イメージの中にいることを示す。scripts/dev はこれを見て、docker を呼ばずにそのままコマンドを実行する
+# （Dev Container や claude-sandbox の中でも `scripts/dev make ci` がそのまま使える）。
+ENV TANGMEN_IN_CONTAINER=1
