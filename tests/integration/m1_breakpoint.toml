@@ -1,0 +1,13 @@
+name = "m1_breakpoint"
+description = "int3（#BP）は報告だけして処理を続け、起動が最後まで進む"
+milestone = "M1"
+kernel = "main"
+cmdline = "selftest=breakpoint"
+timeout = 30
+expect = [
+    'EXCEPTION: #BP Breakpoint \(vector 3, error 0x0\)',
+    'selftest: breakpoint resumed',
+    'kui: init complete',
+]
+forbid = ["UBSAN", "PANIC"]
+exit = "any"

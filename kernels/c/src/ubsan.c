@@ -15,6 +15,7 @@
  */
 #include <stdint.h>
 
+#include <kui/arch/x86_64/cpu.h>
 #include <kui/panic.h>
 #include <kui/printk.h>
 
@@ -95,6 +96,13 @@ static int ubsan_reporting;
 _Noreturn static void ubsan_report(const char *kind, const struct source_location *loc,
 				   const char *detail)
 {
+	/*
+	 * 表示の前に割り込みを禁止する。許可したままだと、表示中に届いたタイマー割り込みの
+	 * 処理で別の違反が起きたとき、「表示中の再違反」と誤って扱ってしまう。
+	 * どのみち直後に panic するので、戻す必要はない。
+	 */
+	cpu_disable_interrupts();
+
 	/*
 	 * 表示（printk → 書式化）の途中で再び違反が起きた。もう一度表示しようとすると
 	 * 同じ違反を繰り返すので、表示せずに panic へ進む（panic は二重 panic として扱う）。

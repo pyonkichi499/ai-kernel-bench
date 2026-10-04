@@ -1,0 +1,14 @@
+name = "m1_exception_ud"
+description = "未定義命令（ud2、#UD）を捕まえて報告する"
+milestone = "M1"
+kernel = "main"
+cmdline = "selftest=ud"
+timeout = 30
+expect = [
+    'EXCEPTION: #UD Invalid Opcode \(vector 6, error 0x0\)',
+    'stack trace:',
+    '#[0-9]+ 0x[0-9a-f]{16} kmain\+0x',
+    'PANIC: unhandled exception #UD',
+]
+forbid = ["UBSAN"]
+exit = "any"

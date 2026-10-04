@@ -1,0 +1,15 @@
+name = "m1_exception_divzero"
+description = "0 除算（#DE）を例外として捕まえ、レジスタとスタックトレースを表示して panic する"
+milestone = "M1"
+kernel = "main"
+cmdline = "selftest=divzero"
+timeout = 30
+expect = [
+    'EXCEPTION: #DE Divide Error \(vector 0, error 0x0\)',
+    'RIP=0x[0-9a-f]{16} RSP=0x[0-9a-f]{16}',
+    'stack trace:',
+    '#[0-9]+ 0x[0-9a-f]{16} kmain\+0x',
+    'PANIC: unhandled exception #DE',
+]
+forbid = ["UBSAN"]
+exit = "any"

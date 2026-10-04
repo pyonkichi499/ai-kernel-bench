@@ -1,0 +1,17 @@
+name = "m1_timer"
+description = "ACPI の MADT を読み、Local APIC と I/O APIC を初期化して、タイマー割り込みが届く"
+milestone = "M1"
+kernel = "main"
+cmdline = ""
+timeout = 30
+expect = [
+    '^acpi: MADT: [0-9]+ cpus, [0-9]+ ioapics, [0-9]+ overrides',
+    '^lapic: id [0-9]+, base 0x',
+    '^ioapic: id [0-9]+, base 0x[0-9a-f]+, gsi [0-9]+-[0-9]+',
+    '^timer: lapic [0-9]+ counts/ms, 100 Hz',
+    '^kui: interrupts enabled',
+    '^kui: timer ok',
+    '^kui: init complete',
+]
+forbid = ["PANIC", "UBSAN", "interrupt: unexpected"]
+exit = "any"

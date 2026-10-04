@@ -1,0 +1,15 @@
+name = "m1_exception_doublefault"
+description = "壊れたスタックで #PF を起こし、#DF を独立したスタック（IST1）で受けて報告する"
+milestone = "M1"
+kernel = "main"
+cmdline = "selftest=doublefault"
+timeout = 30
+expect = [
+    'EXCEPTION: #DF Double Fault \(vector 8, error 0x0\)',
+    'RSP=0x[0-9a-f]{16}',
+    'stack trace:',
+    '#[0-9]+ 0x[0-9a-f]{16} kmain\+0x',
+    'PANIC: unhandled exception #DF',
+]
+forbid = ["UBSAN", "nested panic"]
+exit = "any"
